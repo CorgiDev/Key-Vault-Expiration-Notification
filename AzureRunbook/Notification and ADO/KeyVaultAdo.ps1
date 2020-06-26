@@ -147,7 +147,10 @@ function Search-AzureDevOpsWorkItems {
 		[string]$SearchTitle,
 		[string]$SearchUri
 	)
-	# The Query (Can be altered for your needs. Searching for work items with a title matching the email subject that are not in a closed, resolved, or removed state)
+	# The Query 
+	# Searches for work items with a title matching the email subject
+	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $SearchTitle + "' ORDER BY [System.ChangedDate] DESC"
+	# Searches for work items with a title matching the email subject that are not in a closed, resolved, or removed state
 	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $SearchTitle + "' AND [System.State]<>'Removed' AND [System.State]<>'Closed' AND [System.State]<>'Resolved' ORDER BY [System.ChangedDate] DESC"
 	$searchBody = ConvertTo-Json @{query = $searchQuery} # Converts query to JSON format for WIQL API call
 	#The search itself
