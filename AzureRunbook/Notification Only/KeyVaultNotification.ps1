@@ -129,8 +129,8 @@ $allKeyVaultObjects.AddRange((Get-AzureKeyVaultObjectKeys -VaultName $VaultName 
 $allKeyVaultObjects.AddRange((Get-AzureKeyVaultObjectSecrets -VaultName $VaultName -IncludeAllVersions $IncludeAllSecretVersions))
 try {
   # Email and password for service account sending notification emails
-  #$ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountEmailLabel).SecretValueText
-  #$ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).ContentType # Use this if the email is the COntent Type of the Password entry instead of a separate Key Vault object.
+  # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountEmailLabel).SecretValueText
+  # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).ContentType # Use this if the email is the COntent Type of the Password entry instead of a separate Key Vault object.
   $ServicePassword = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).SecretValueText
   $Password = ConvertTo-SecureString $ServicePassword -AsPlainText -Force
 }
@@ -144,9 +144,9 @@ $Creds = New-Object System.Management.Automation.PSCredential($ServiceAccountEma
 $expiredCount = 0
 $expiredKeyVaultObjects = [System.Collections.ArrayList]@()
 foreach($vaultObject in $allKeyVaultObjects) {
-  #Send SRE Alert if within the number of days set by SREAlert days
+  # Send SRE Alert if within the number of days set by SREAlert days
   if ($vaultObject.Expires -and $vaultObject.Expires.AddDays(-$AlertRange).Date -lt $today) {
-    # add to expiry list
+    # Add to expiry list
     $expiredKeyVaultObjects.Add($vaultObject) | Out-Null
     Write-Output "Expiring" $vaultObject.Id
     $secretName = $vaultObject.Name

@@ -6,12 +6,12 @@
 # account.
 ######################################
 # Key Vault being checked
-$VaultName = "{Vault Name}" #Vault being searched. Must be on same subscription as Automation Account.
+$VaultName = "{Vault Name}" # Vault being searched. Must be on same subscription as Automation Account.
 # Service Account Info
 $ServiceAccountEmail = "{Service Account Email Sending Notifications}"
 $ServiceAccountEmailPasswordLabel = "{Key Vault Label for Service Account Password}"
 $ServiceAccountEmailLabel = "{Key Vault Label for Service Account Email Address}" # If stored separately from password
-$ServiceAccountKeyVault = "{Name of Key Vault where Service Account Info stored}" #Vault where pulling service account
+$ServiceAccountKeyVault = "{Name of Key Vault where Service Account Info stored}" # Vault where pulling service account
 # Key Vault query info
 $IncludeAllKeyVersions = $true
 $IncludeAllSecretVersions = $true
@@ -37,7 +37,7 @@ $baseOrgUri = "https://dev.azure.com/$adoOrg/$adoProj"
 $adoWiki = "{Location of your asset update documentation}"
 $wiqlUri = "$baseOrgUri/$adoTeam/_apis/wit/wiql?$adoApiVersion"
 $workItemBaseUrl = "https://$adoOrg.visualstudio.com/$adoProj/_apis/wit/workitems/" # This could require this different formatting. Depends on your instance somewhat.
-#$workItemBaseUrl = "$baseOrgUri/_apis/wit/workitems/"
+# $workItemBaseUrl = "$baseOrgUri/_apis/wit/workitems/"
 $createWorkUri = (-join ($workItemBaseUrl,"`$","User%20Story?", $adoApiVersion)) # I fyou prefer to make "tasks" instead, swap it for "Tasks?"
 $workItemViewUri = "$baseOrgUri/_workitems/edit/"
 # ADO PAT
@@ -140,7 +140,7 @@ function Get-AzureKeyVaultObjectSecrets {
 	return $vaultObjects
 }
 
-#Checks if open work item already exists for the asset expiring
+# Checks if open work item already exists for the asset expiring
 function Search-AzureDevOpsWorkItems {
 	param
 	(
@@ -153,7 +153,7 @@ function Search-AzureDevOpsWorkItems {
 	# Searches for work items with a title matching the email subject that are not in a closed, resolved, or removed state
 	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $SearchTitle + "' AND [System.State]<>'Removed' AND [System.State]<>'Closed' AND [System.State]<>'Resolved' ORDER BY [System.ChangedDate] DESC"
 	$searchBody = ConvertTo-Json @{query = $searchQuery} # Converts query to JSON format for WIQL API call
-	#The search itself
+	# The search itself
 	$searchResults = Invoke-RestMethod -Uri $wiqlUri -Method Post -ContentType "application/json" -Headers $adoHeader -Body $searchBody
 	return $searchResults
 }
@@ -273,9 +273,9 @@ $expiredKeyVaultObjects = [System.Collections.ArrayList]@()
 foreach($vaultObject in $allKeyVaultObjects) {
     $assetBody = ""
     $ticketbody = ""
-	#Send alert if within the number of days set by $AlertRange
+	# Send alert if within the number of days set by $AlertRange
 	if ($vaultObject.Expires -and $vaultObject.Expires.AddDays(-$AlertRange).Date -lt $today) {
-		# add to expiry list
+		# Add to expiry list
 		$expiredKeyVaultObjects.Add($vaultObject) | Out-Null
 		$secretName = $vaultObject.Name
 		$secretExpire = $vaultObject.Expires
