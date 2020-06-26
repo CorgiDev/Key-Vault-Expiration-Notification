@@ -36,7 +36,7 @@ There are 2 main versions of the script in each of the main folders listed previ
 - Runbook variant requires an Azure DevOps Personal Access Token to access the ADO portions. This is meant to be stored in an encrypted variable within the Automation Account itself. Though you could alter it to pull from a KeyVault instead.
   - Looking into ways to use something not linked to a specific user account in the future.
 
-## Additional Documentation
+## External Documentation Referenced
 -  [Expiry Notification for Azure Key Vault Keys and Secrets](https://www.rahulpnath.com/blog/expiry-notification-for-azure-key-vault-keys-and-secrets/)
    -  By Rahul Nath on his official page
    -  Honestly this page was the one that got me started on this journey and thinking about what all I could do with Key Vault, which led to thinking about making ADO work items.
@@ -66,3 +66,6 @@ There are 2 main versions of the script in each of the main folders listed previ
    -  By Arindam Hazra on Tech Automation Blog
 -  [Create Azure DevOps Task using Powershell](https://arindamhazra.com/create-azure-devops-task-using-powershell/)
    -  By Arindam Hazra on Tech Automation Blog
+
+## Additional Thanks
+I want to thank some of my wonderful friends, coworkers, and my boyfriend who helped me troubleshoot this script and get it working. It started as a fun personal project I was playing with outside work, which then turned into something helpful at work and in my personal play areas. While functional, I am going to be looking at ways to refactor it soon to clean it up and improve its quality. However, I hope that it can serve as a helpful tool to people in the mean time.
