@@ -1,8 +1,13 @@
+param
+(
+    [string]$RecipientEmail = "{Email or DL that notifications need to go to}", # Sets default email if alternative isn't provided when running the Runbook manually
+    [int]$AlertRange = 40,
+    [string]$VaultName = "{Name of Vault being checked}" # Must be within the same subscription as the automation account
+    
+)
 #####################
 # Variables
 #####################
-# Key Vault being checked
-$VaultName = "{Name of Vault being checked}" # Must be within the same subscription as the automation account
 # Service Account Info
 $ServiceAccountEmail = "{Email of Service Account}"
 $ServiceAccountEmailLabel = "{Label of Service Account Email in KeyVault}" # Only needed if you plan to pull that from key vault too, but have to make other changes if doing that too
@@ -10,12 +15,11 @@ $ServiceAccountPasswordLabel = "{Label for service account password in KeyVault}
 $ServiceAccountKeyVault = "{Name of Vault where Service Account info is stored}"
 
 # Key Vault query info
-$IncludeAllKeyVersions = $true
-$IncludeAllSecretVersions = $true
+$IncludeAllKeyVersions = $false
+$IncludeAllSecretVersions = $false
 $KeyvaultUri = "https://ms.portal.azure.com/{depends on your org}/asset/Microsoft_Azure_KeyVault/Secret/" # Navigate into a keyvault secret and you will see this portion of the url. Replace the bracketed area with whatever is in your URL.
 
 # Email Info
-$RecipientEmail = "{Email or DL that notifications need to go to}"
 $From = $ServiceAccountEmail
 $Port = 587
 $SMTPServer = "smtp.office365.com"
@@ -29,7 +33,6 @@ $PAT = $ADO_PAT_Variable.value
 
 # Misc Variables
 $divider = "==========================================================================================================="
-$AlertRange = 40
 $today = (Get-Date).Date
 
 #######################
@@ -77,66 +80,66 @@ Function New-KeyVaultObject {
 }
 
 function Get-AzureKeyVaultObjectKeys {
-  param
-  (
-    [string]$VaultName,
-    [bool]$IncludeAllVersions
-  )
+    param
+    (
+        [string]$VaultName,
+        [bool]$IncludeAllVersions
+    )
 
-  $vaultObjects = [System.Collections.ArrayList]@()
-  $allKeys = Get-AzureKeyVaultKey -VaultName $VaultName
-  foreach ($key in $allKeys) {
-    if($IncludeAllVersions){
-      $allSecretVersion = Get-AzureKeyVaultKey -VaultName $VaultName -IncludeVersions -Name $key.Name
-      foreach($key in $allSecretVersion){
-        $vaultObject = New-KeyVaultObject -Id $key.Id -Name $key.Name -Version $key.Version -Expires $key.Expires
-        $vaultObjects.Add($vaultObject)
-      }
-    } else {
-      $vaultObject = New-KeyVaultObject -Id $key.Id -Name $key.Name -Version $key.Version -Expires $key.Expires
-      $vaultObjects.Add($vaultObject)
+    $vaultObjects = [System.Collections.ArrayList]@()
+    $allKeys = Get-AzureKeyVaultKey -VaultName $VaultName
+    foreach ($key in $allKeys) {
+        if($IncludeAllVersions){
+            $allSecretVersion = Get-AzureKeyVaultKey -VaultName $VaultName -IncludeVersions -Name $key.Name
+            foreach($key in $allSecretVersion){
+                $vaultObject = New-KeyVaultObject -Id $key.Id -Name $key.Name -Version $key.Version -Expires $key.Expires
+                $vaultObjects.Add($vaultObject)
+            }
+        } else {
+            $vaultObject = New-KeyVaultObject -Id $key.Id -Name $key.Name -Version $key.Version -Expires $key.Expires
+            $vaultObjects.Add($vaultObject)
+        }
     }
-  }
-  return $vaultObjects
+    return $vaultObjects
 }
 
 function Get-AzureKeyVaultObjectSecrets {
-  param
-  (
-    [string]$VaultName,
-    [bool]$IncludeAllVersions
-  )
+    param
+    (
+        [string]$VaultName,
+        [bool]$IncludeAllVersions
+    )
 
-  $vaultObjects = [System.Collections.ArrayList]@()
-  $allSecrets = Get-AzureKeyVaultSecret -VaultName $VaultName
-  foreach ($secret in $allSecrets) {
-    if($IncludeAllVersions){
-      $allSecretVersion = Get-AzureKeyVaultSecret -VaultName $VaultName -IncludeVersions -Name $secret.Name
-      foreach($secret in $allSecretVersion){
-        $vaultObject = New-KeyVaultObject -Id $secret.Id -Name $secret.Name -Version $secret.Version -Expires $secret.Expires
-        $vaultObjects.Add($vaultObject)
+    $vaultObjects = [System.Collections.ArrayList]@()
+    $allSecrets = Get-AzureKeyVaultSecret -VaultName $VaultName
+    foreach ($secret in $allSecrets) {
+        if($IncludeAllVersions){
+            $allSecretVersion = Get-AzureKeyVaultSecret -VaultName $VaultName -IncludeVersions -Name $secret.Name
+            foreach($secret in $allSecretVersion){
+                $vaultObject = New-KeyVaultObject -Id $secret.Id -Name $secret.Name -Version $secret.Version -Expires $secret.Expires
+                $vaultObjects.Add($vaultObject)
+            }
+        } else {
+            $vaultObject = New-KeyVaultObject -Id $secret.Id -Name $secret.Name -Version $secret.Version -Expires $secret.Expires
+            $vaultObjects.Add($vaultObject)
+        }
     }
-    } else {
-      $vaultObject = New-KeyVaultObject -Id $secret.Id -Name $secret.Name -Version $secret.Version -Expires $secret.Expires
-      $vaultObjects.Add($vaultObject)
-    }
-  }
-  return $vaultObjects
+    return $vaultObjects
 }
 
 $allKeyVaultObjects = [System.Collections.ArrayList]@()
 $allKeyVaultObjects.AddRange((Get-AzureKeyVaultObjectKeys -VaultName $VaultName -IncludeAllVersions $IncludeAllKeyVersions))
 $allKeyVaultObjects.AddRange((Get-AzureKeyVaultObjectSecrets -VaultName $VaultName -IncludeAllVersions $IncludeAllSecretVersions))
 try {
-  # Email and password for service account sending notification emails
-  # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountEmailLabel).SecretValueText
-  # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).ContentType # Use this if the email is the COntent Type of the Password entry instead of a separate Key Vault object.
-  $ServicePassword = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).SecretValueText
-  $Password = ConvertTo-SecureString $ServicePassword -AsPlainText -Force
+    # Email and password for service account sending notification emails
+    # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountEmailLabel).SecretValueText
+    # $ServiceUsername = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).ContentType # Use this if the email is the COntent Type of the Password entry instead of a separate Key Vault object.
+    $ServicePassword = (Get-AzureKeyVaultSecret -vaultName $ServiceAccountKeyVault -name $ServiceAccountPasswordLabel).SecretValueText
+    $Password = ConvertTo-SecureString $ServicePassword -AsPlainText -Force
 }
 catch {
-  Write-Error -Message $_.Exception
-  throw $_.Exception
+    Write-Error -Message $_.Exception
+    throw $_.Exception
 }
 $Creds = New-Object System.Management.Automation.PSCredential($ServiceAccountEmail, $Password)
 
@@ -144,29 +147,28 @@ $Creds = New-Object System.Management.Automation.PSCredential($ServiceAccountEma
 $expiredCount = 0
 $expiredKeyVaultObjects = [System.Collections.ArrayList]@()
 foreach($vaultObject in $allKeyVaultObjects) {
-  # Send SRE Alert if within the number of days set by SREAlert days
-  if ($vaultObject.Expires -and $vaultObject.Expires.AddDays(-$AlertRange).Date -lt $today) {
-    # Add to expiry list
-    $expiredKeyVaultObjects.Add($vaultObject) | Out-Null
-    Write-Output "Expiring" $vaultObject.Id
-    $secretName = $vaultObject.Name
-    $To = $RecipientEmail
-    $Subject = "$secretName in Key Vaults expiring in next $AlertRange days"
-    $Body = Write-Output "The " $secretName " secret in the Key Vault is expiring on " $vaultObject.Expires " : " (-join ($KeyvaultUri, $vaultObject.Id)) ". <br/><br/> This credential may have multiple parts, and be located in multiple Key Vaults. See $adoWiki for more details."
-    
-    Send-MailMessage -to $To -From $From -Subject $Subject -BodyAsHtml ($Body | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
-    $expiredCount += 1
-  }
+    # Send SRE Alert if within the number of days set by SREAlert days
+    if ($vaultObject.Expires -and $vaultObject.Expires.AddDays(-$AlertRange).Date -lt $today) {
+        # Add to expiry list
+        $expiredKeyVaultObjects.Add($vaultObject) | Out-Null
+        Write-Output "Expiring" $vaultObject.Id
+        $secretName = $vaultObject.Name
+        $Subject = "$secretName in Key Vaults expiring in next $AlertRange days"
+        $Body = Write-Output "The " $secretName " secret in the Key Vault is expiring on " $vaultObject.Expires " : " (-join ($KeyvaultUri, $vaultObject.Id)) ". <br/><br/> This credential may have multiple parts, and be located in multiple Key Vaults. See $adoWiki for more details."
+        
+        Send-MailMessage -to $RecipientEmail -From $From -Subject $Subject -BodyAsHtml ($Body | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
+        $expiredCount += 1
+    }
 }
 $expiredCount
 
 if($expiredCount -eq 0){
-  $Subject = "No assets expiring this sprint"
-  $Body = "Good news everybody! No assets are expiring in the next $AlertRange days. This email appears so you know the job is still running. If you were expecting something to be expiring soon, then this also serves as a reminder that you might want to go check Key Vault."
-  Send-MailMessage -to $To -From $From -Subject $Subject -BodyAsHtml ($Body | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
+    $Subject = "No assets expiring this sprint"
+    $Body = "Good news everybody! No assets are expiring in the next $AlertRange days. This email appears so you know the job is still running. If you were expecting something to be expiring soon, then this also serves as a reminder that you might want to go check Key Vault."
+    Send-MailMessage -to $RecipientEmail -From $From -Subject $Subject -BodyAsHtml ($Body | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
 }
 elseif($expiredCount -ge 1){
-  Write-Output "There are $expiredCount assets expiring soon."
-  Write-Output "The following assets are expiring sometime within the next $AlertRange days:"
-  $expiredKeyVaultObjects
+    Write-Output "There are $expiredCount assets expiring soon."
+    Write-Output "The following assets are expiring sometime within the next $AlertRange days:"
+    $expiredKeyVaultObjects
 }
