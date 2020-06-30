@@ -1,3 +1,11 @@
+param
+(
+    [string]$RecipientEmail = "{Email or DL that notifications need to go to}", # Sets default email if alternative isn't provided when running the Runbook manually
+    [int]$AlertRange = 40,
+    [string]$VaultName = "{Name of Vault being checked}" # Must be within the same subscription as the automation account
+    
+)
+
 ######################################
 # Variables
 # Please note that this script will 
@@ -5,22 +13,19 @@
 # subscription as the automation 
 # account.
 ######################################
-# Key Vault being checked
-$VaultName = "{Vault Name}" # Vault being searched. Must be on same subscription as Automation Account.
 # Service Account Info
 $ServiceAccountEmail = "{Service Account Email Sending Notifications}"
 $ServiceAccountEmailPasswordLabel = "{Key Vault Label for Service Account Password}"
 $ServiceAccountEmailLabel = "{Key Vault Label for Service Account Email Address}" # If stored separately from password
 $ServiceAccountKeyVault = "{Name of Key Vault where Service Account Info stored}" # Vault where pulling service account
+
 # Key Vault query info
 $IncludeAllKeyVersions = $true
 $IncludeAllSecretVersions = $true
 $KeyvaultUri = "https://ms.portal.azure.com/{depends on your org}/asset/Microsoft_Azure_KeyVault/Secret/" # Navigate into a keyvault secret and you will see this portion of the url. Replace the bracketed area with whatever is in your URL.
+
 # Email info
-$RecipientEmail = "{Receiving Email or DL address}"
-$To = $RecipientEmail
 $From = $ServiceAccountEmail
-$AlertRange = 40
 $Port = 587
 $SMTPServer = "smtp.office365.com"
 
@@ -40,6 +45,7 @@ $workItemBaseUrl = "https://$adoOrg.visualstudio.com/$adoProj/_apis/wit/workitem
 # $workItemBaseUrl = "$baseOrgUri/_apis/wit/workitems/"
 $createWorkUri = (-join ($workItemBaseUrl,"`$","User%20Story?", $adoApiVersion)) # I fyou prefer to make "tasks" instead, swap it for "Tasks?"
 $workItemViewUri = "$baseOrgUri/_workitems/edit/"
+
 # ADO PAT
 $encryptedPatVarName = "{ADO Personal Access Token variable name in Automation Account variables}"
 $adoPat = Get-AutomationVariable -Name $encryptedPatVarName # Works for encrypted variable stored in Automation Account. Same method can be used to retrieve other variables if you would like.
@@ -146,12 +152,13 @@ function Search-AzureDevOpsWorkItems {
 	(
 		[string]$SearchTitle,
 		[string]$SearchUri
-	)
+    )
+    $newTitle = "(DO NOT EDIT TITLE) $SearchTitle"
 	# The Query 
 	# Searches for work items with a title matching the email subject
-	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $SearchTitle + "' ORDER BY [System.ChangedDate] DESC"
+	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $newTitle + "' ORDER BY [System.ChangedDate] DESC"
 	# Searches for work items with a title matching the email subject that are not in a closed, resolved, or removed state
-	$searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $SearchTitle + "' AND [System.State]<>'Removed' AND [System.State]<>'Closed' AND [System.State]<>'Resolved' ORDER BY [System.ChangedDate] DESC"
+	# $searchQuery = "SELECT [System.Title],[System.State],[System.ChangedDate] FROM workitems WHERE [System.Title] CONTAINS WORDS '"+ $newTitle + "' AND [System.State]<>'Removed' AND [System.State]<>'Closed' AND [System.State]<>'Resolved' ORDER BY [System.ChangedDate] DESC"
 	$searchBody = ConvertTo-Json @{query = $searchQuery} # Converts query to JSON format for WIQL API call
 	# The search itself
 	$searchResults = Invoke-RestMethod -Uri $wiqlUri -Method Post -ContentType "application/json" -Headers $adoHeader -Body $searchBody
@@ -172,14 +179,15 @@ function New-AzureDevOpsWorkItem {
         [String]$WorkRequestType,
         [String]$AcceptanceCriteriaString,
         [Int]$WorkItemPriority
-	)
+    )
+    $newWorkItemTitle = "(DO NOT EDIT TITLE) $workItemTitle"
 	$workItemBody = @"
 [
 	{
 		“op”: “add”,
 		“path”: “/fields/System.Title”,
 		“from”: null,
-		“value”: “$workItemTitle"
+		“value”: “$newWorkItemTitle"
 	},
 	{
 		“op”: “add”,
@@ -327,7 +335,7 @@ foreach($vaultObject in $allKeyVaultObjects) {
 		}
         Write-Output "Sending notification email for $secretName."
         # Sends the message
-		Send-MailMessage -to $To -From $From -Subject $searchSubject -BodyAsHtml ($assetBody | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
+		Send-MailMessage -to $RecipientEmail -From $From -Subject $searchSubject -BodyAsHtml ($assetBody | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
         Write-Output "Email notification for $secretName sent."
         $divider
 	}
@@ -341,7 +349,7 @@ Write-Output "RUNBOOK END SUMMARY"
 if($expiredCount -eq 0){
 	$verifySubject = "No assets expiring this sprint"
 	$verifyBody = "Good news everybody! No assets are expiring this sprint. This email appears so you know the job is still running. If you were expecting something to be expiring soon, then this also serves as a reminder that you might want to go check Key Vault."
-	Send-MailMessage -to $To -From $From -Subject $verifySubject -BodyAsHtml ($verifyBody | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
+	Send-MailMessage -to $RecipientEmail -From $From -Subject $verifySubject -BodyAsHtml ($verifyBody | Out-String) -SmtpServer $SMTPServer -Port $Port -UseSsl -Credential $Creds
 	$verifySubject
 	$divider
 }
