@@ -3,7 +3,6 @@ param
     [string]$RecipientEmail = "{Email or DL that notifications need to go to}", # Sets default email if alternative isn't provided when running the Runbook manually
     [int]$AlertRange = 40,
     [string]$VaultName = "{Name of Vault being checked}" # Must be within the same subscription as the automation account
-    
 )
 
 ######################################
